@@ -25,7 +25,7 @@ export function Navbar() {
   return (
     <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto max-w-4xl flex flex-col gap-2 py-2 px-3 sm:px-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:h-14 sm:py-0">
-        <Link href="/lending" className="flex items-center gap-2 font-bold text-base sm:text-lg shrink-0">
+        <Link href="/" className="flex items-center gap-2 font-bold text-base sm:text-lg shrink-0">
           <span className="text-xl">◈</span>
           <span>Arc Borrow &amp; Lend</span>
         </Link>
