@@ -46,7 +46,7 @@ export interface InsertTransactionInput {
   status?: TxStatus;
 }
 
-export type SortColumn = "created_at" | "amount_formatted";
+export type SortColumn = "created_at" | "amount";
 export type SortDirection = "asc" | "desc";
 
 export interface ListTransactionsParams {
