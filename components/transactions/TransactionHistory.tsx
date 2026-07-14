@@ -189,7 +189,7 @@ export function TransactionHistory({ wallet }: TransactionHistoryProps) {
                   <TableHead>Token</TableHead>
                   <TableHead className="text-right">
                     <SortableHeader
-                      column="amount_formatted"
+                      column="amount"
                       label="Amount"
                       activeColumn={sortColumn}
                       activeDirection={sortDirection}
