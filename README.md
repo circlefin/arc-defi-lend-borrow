@@ -48,8 +48,8 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 
 1. Clone the repository and install dependencies:
   ```bash
-   git clone <repo-url>
-   cd arc-borrow-lend
+   git clone https://github.com/circlefin/arc-defi-lend-borrow.git
+   cd arc-defi-lend-borrow
    npm install
   ```
 2. Set up environment variables:
@@ -214,4 +214,3 @@ This sample application:
 - cirBTC is an existing token on Arc Testnet and is not mintable via the app
 - No interest rate model — this is an interest-free protocol for demonstration purposes
 - Is not intended for production use without modification
-
