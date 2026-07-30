@@ -24,7 +24,7 @@ import {
   listTransactions,
   type InsertTransactionInput,
   type ListTransactionsParams,
-} from "@/lib/supabase/transactions";
+} from "@/lib/transactions/api";
 
 export function useTransactionsQuery(params: ListTransactionsParams, enabled: boolean) {
   return useQuery({

@@ -15,10 +15,9 @@
 -- SPDX-License-Identifier: Apache-2.0
 
 -- Transactions history for the lending dApp.
--- Rows are written client-side after each on-chain action confirms.
 
-create table public.transactions (
-  id uuid primary key default gen_random_uuid(),
+create table if not exists transactions (
+  id uuid primary key,
   tx_hash text not null unique,
   wallet_address text not null,
   action text not null check (action in ('deposit','withdraw','borrow','repay','mint_usdc')),
@@ -29,16 +28,8 @@ create table public.transactions (
   created_at timestamptz not null default now()
 );
 
-create index transactions_wallet_created_idx
-  on public.transactions (wallet_address, created_at desc);
+create index if not exists transactions_wallet_created_idx
+  on transactions (wallet_address, created_at desc);
 
-create index transactions_hash_idx
-  on public.transactions (tx_hash);
-
-alter table public.transactions enable row level security;
-
-create policy "read all" on public.transactions
-  for select using (true);
-
-create policy "insert all" on public.transactions
-  for insert with check (true);
+create index if not exists transactions_hash_idx
+  on transactions (tx_hash);

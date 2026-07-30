@@ -40,13 +40,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { isTransactionStoreConfigured } from "@/lib/transactions/store";
 import type {
   SortColumn,
   SortDirection,
   TransactionRow,
   TxAction,
-} from "@/lib/supabase/transactions";
+} from "@/lib/transactions/api";
 import { useTransactionsQuery } from "@/hooks/useTransactions";
 import { SortableHeader } from "./SortableHeader";
 
@@ -90,7 +90,7 @@ export function TransactionHistory({ wallet }: TransactionHistoryProps) {
     [sortColumn, sortDirection],
   );
 
-  const configured = isSupabaseConfigured();
+  const configured = isTransactionStoreConfigured();
 
   const { data, isLoading, isError, error } = useTransactionsQuery(
     {
@@ -167,9 +167,8 @@ export function TransactionHistory({ wallet }: TransactionHistoryProps) {
 
         {!configured ? (
           <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Supabase is not configured. Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-            <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in <code>.env.local</code> to
-            enable transaction history.
+            Transaction history is not configured. Set <code>DATABASE_URL</code> in{" "}
+            <code>.env.local</code> to enable it.
           </div>
         ) : (
           <div className="rounded-md border border-border">

@@ -39,6 +39,13 @@ export const LENDING_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "rewardRateBpsPerWeek",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
   // ─── Mappings ─────────────────────────────────────────────────────
   {
     inputs: [{ name: "user", type: "address" }],
@@ -55,6 +62,34 @@ export const LENDING_ABI = [
       { name: "collateral", type: "uint256" },
       { name: "isActive", type: "bool" },
     ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "yieldDeposits",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "pendingRewards",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "claimableRewards",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "executor", type: "address" }],
+    name: "approvedExecutors",
+    outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
   },
@@ -109,6 +144,44 @@ export const LENDING_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "deposit",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "user", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    name: "withdrawForUser",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "claimRewards",
+    outputs: [{ name: "claimedAmount", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "claimRewardsForUser",
+    outputs: [{ name: "claimedAmount", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
   // ─── Owner actions ────────────────────────────────────────────────
   {
     inputs: [{ name: "amount", type: "uint256" }],
@@ -120,6 +193,23 @@ export const LENDING_ABI = [
   {
     inputs: [{ name: "_collateralFactor", type: "uint256" }],
     name: "setCollateralFactor",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "_rewardRateBpsPerWeek", type: "uint256" }],
+    name: "setRewardRateBpsPerWeek",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "executor", type: "address" },
+      { name: "approved", type: "bool" },
+    ],
+    name: "setExecutorApproval",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -159,6 +249,49 @@ export const LENDING_ABI = [
       { indexed: false, name: "amount", type: "uint256" },
     ],
     name: "LoanRepaid",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "user", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+    ],
+    name: "YieldDeposited",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "user", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+    ],
+    name: "YieldWithdrawn",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "user", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+      { indexed: true, name: "caller", type: "address" },
+    ],
+    name: "RewardClaimed",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [{ indexed: false, name: "newRewardRateBpsPerWeek", type: "uint256" }],
+    name: "RewardRateUpdated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "executor", type: "address" },
+      { indexed: false, name: "approved", type: "bool" },
+    ],
+    name: "ExecutorApprovalUpdated",
     type: "event",
   },
 ] as const;

@@ -38,12 +38,15 @@ export function useLendingState(userAddress: Address | undefined) {
     contracts: [
       { ...lendingContract, functionName: "collateralFactor" },
       { ...lendingContract, functionName: "poolLiquidity" },
+      { ...lendingContract, functionName: "rewardRateBpsPerWeek" },
       ...(userAddress
         ? [
             { ...lendingContract, functionName: "collateralBalances", args: [userAddress] },
             { ...lendingContract, functionName: "loans", args: [userAddress] },
             { ...lendingContract, functionName: "maxBorrow", args: [userAddress] },
             { ...lendingContract, functionName: "availableCollateral", args: [userAddress] },
+            { ...lendingContract, functionName: "yieldDeposits", args: [userAddress] },
+            { ...lendingContract, functionName: "claimableRewards", args: [userAddress] },
           ]
         : []),
     ],
@@ -55,14 +58,20 @@ export function useLendingState(userAddress: Address | undefined) {
 
   const collateralFactor = data?.[0]?.result as bigint | undefined;
   const poolLiquidity = data?.[1]?.result as bigint | undefined;
-  const collateralBalance = userAddress ? (data?.[2]?.result as bigint | undefined) : undefined;
+  const rewardRateBpsPerWeek = data?.[2]?.result as bigint | undefined;
+  const collateralBalance = userAddress ? (data?.[3]?.result as bigint | undefined) : undefined;
   const loan = userAddress
-    ? (data?.[3]?.result as
+    ? (data?.[4]?.result as
         | readonly [bigint, bigint, boolean]
         | undefined)
     : undefined;
-  const maxBorrow = userAddress ? (data?.[4]?.result as bigint | undefined) : undefined;
-  const availableCollateral = userAddress ? (data?.[5]?.result as bigint | undefined) : undefined;
+  const maxBorrow = userAddress ? (data?.[5]?.result as bigint | undefined) : undefined;
+  const availableCollateral = userAddress ? (data?.[6]?.result as bigint | undefined) : undefined;
+  const yieldDeposit = userAddress ? (data?.[7]?.result as bigint | undefined) : undefined;
+  const claimableReward = userAddress ? (data?.[8]?.result as bigint | undefined) : undefined;
+  const estimatedAprPercent = rewardRateBpsPerWeek !== undefined
+    ? Number(rewardRateBpsPerWeek) * 0.52
+    : undefined;
 
   return {
     isLoading,
@@ -70,12 +79,16 @@ export function useLendingState(userAddress: Address | undefined) {
     // raw bigints
     collateralFactor,
     poolLiquidity,
+    rewardRateBpsPerWeek,
+    estimatedAprPercent,
     collateralBalance,
     loanAmount: loan?.[0],
     loanCollateral: loan?.[1],
     loanIsActive: loan?.[2] ?? false,
     maxBorrow,
     availableCollateral,
+    yieldDeposit,
+    claimableReward,
     // formatted strings
     poolLiquidityFormatted: poolLiquidity !== undefined
       ? parseFloat(formatUnits(poolLiquidity, LOAN_DECIMALS)).toLocaleString("en-US", { maximumFractionDigits: 2 })
@@ -91,6 +104,12 @@ export function useLendingState(userAddress: Address | undefined) {
       : "—",
     availableCollateralFormatted: availableCollateral !== undefined
       ? fmt(availableCollateral, COLLATERAL_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 8 })
+      : "—",
+    yieldDepositFormatted: yieldDeposit !== undefined
+      ? fmt(yieldDeposit, LOAN_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 6 })
+      : "—",
+    claimableRewardFormatted: claimableReward !== undefined
+      ? fmt(claimableReward, LOAN_DECIMALS, { minimumFractionDigits: 6, maximumFractionDigits: 6 })
       : "—",
   };
 }

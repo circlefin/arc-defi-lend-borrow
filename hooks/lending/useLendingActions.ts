@@ -18,14 +18,16 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseUnits } from "viem";
 import { useContractWrite } from "@/hooks/useContractWrite";
 import { ERC20_ABI, TESTNET_ERC20_ABI, LENDING_ABI } from "@/lib/contracts";
 import { LENDING_ADDRESS, USDC_ADDRESS, CIRBTC_ADDRESS, COLLATERAL_DECIMALS, LOAN_DECIMALS } from "@/lib/contracts/addresses";
 import { useWallet } from "@/contexts/WalletContext";
 import { useLogTransaction } from "@/hooks/useTransactions";
-import type { TxAction, TxToken } from "@/lib/supabase/transactions";
+import type { TxAction, TxToken } from "@/lib/transactions/api";
+import { arcTestnet } from "@/lib/wagmi";
+import { useChainId, usePublicClient } from "wagmi";
 
 // cirBTC is obtained from Circle's faucet (https://faucet.circle.com) — not
 // mintable by this app. See README § Security & Usage Model.
@@ -67,11 +69,37 @@ function useLogOnConfirm(
 export function useMintUsdc() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
   const { address } = useWallet();
+  const chainId = useChainId();
+  const publicClient = usePublicClient();
   const pending = useRef<PendingLog | null>(null);
+  const [validationError, setValidationError] = useState<Error | null>(null);
   useLogOnConfirm(isSuccess, hash, pending);
 
-  const mint = (amount: string) => {
-    if (!address) return;
+  const mint = async (amount: string) => {
+    setValidationError(null);
+    if (!address) {
+      setValidationError(new Error("Wallet is not connected."));
+      return;
+    }
+    if (chainId !== arcTestnet.id) {
+      setValidationError(new Error("Switch MetaMask to Arc Testnet (Chain ID 5042002) to use the in-app faucet."));
+      return;
+    }
+    if (USDC_ADDRESS === "0x0000000000000000000000000000000000000000") {
+      setValidationError(new Error("USDC address is not configured. Deploy contracts and set NEXT_PUBLIC_USDC_ADDRESS."));
+      return;
+    }
+    if (!publicClient) {
+      setValidationError(new Error("RPC client is unavailable. Check NEXT_PUBLIC_RPC_URL and reload the app."));
+      return;
+    }
+
+    const bytecode = await publicClient.getBytecode({ address: USDC_ADDRESS });
+    if (!bytecode || bytecode === "0x") {
+      setValidationError(new Error("USDC address has no contract bytecode on Arc Testnet. Re-deploy and update NEXT_PUBLIC_USDC_ADDRESS."));
+      return;
+    }
+
     const raw = parseUnits(amount, LOAN_DECIMALS);
     pending.current = { action: "mint_usdc", token: "USDC", amountRaw: raw, amountFormatted: amount };
     write({
@@ -82,7 +110,9 @@ export function useMintUsdc() {
     });
   };
 
-  return { mint, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
+  const mintError = validationError ?? error;
+
+  return { mint, isPending, isConfirming, isSubmitted, isSuccess, error: mintError, hash };
 }
 
 export function useApproveCirBtc() {
@@ -193,4 +223,57 @@ export function useRepayLoan() {
   };
 
   return { repay, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
+}
+
+export function useDepositYield() {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+  const pending = useRef<PendingLog | null>(null);
+  useLogOnConfirm(isSuccess, hash, pending);
+
+  const deposit = (amount: string) => {
+    const raw = parseUnits(amount, LOAN_DECIMALS);
+    pending.current = { action: "deposit", token: "USDC", amountRaw: raw, amountFormatted: amount };
+    write({
+      address: LENDING_ADDRESS,
+      abi: LENDING_ABI,
+      functionName: "deposit",
+      args: [raw],
+    });
+  };
+
+  return { deposit, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
+}
+
+export function useWithdrawYield() {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+  const pending = useRef<PendingLog | null>(null);
+  useLogOnConfirm(isSuccess, hash, pending);
+
+  const withdraw = (amount: string) => {
+    const raw = parseUnits(amount, LOAN_DECIMALS);
+    pending.current = { action: "withdraw", token: "USDC", amountRaw: raw, amountFormatted: amount };
+    write({
+      address: LENDING_ADDRESS,
+      abi: LENDING_ABI,
+      functionName: "withdraw",
+      args: [raw],
+    });
+  };
+
+  return { withdraw, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
+}
+
+export function useClaimYieldRewards() {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+
+  const claim = () => {
+    write({
+      address: LENDING_ADDRESS,
+      abi: LENDING_ABI,
+      functionName: "claimRewards",
+      args: [],
+    });
+  };
+
+  return { claim, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
 }

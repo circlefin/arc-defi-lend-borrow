@@ -18,23 +18,7 @@
 
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-let cached: SupabaseClient | null = null;
-
-export function getSupabaseClient(): SupabaseClient | null {
-  if (!url || !publishableKey) return null;
-  if (!cached) {
-    cached = createClient(url, publishableKey, {
-      auth: { persistSession: false },
-    });
-  }
-  return cached;
-}
-
-export function isSupabaseConfigured(): boolean {
-  return Boolean(url && publishableKey);
+export function isTransactionStoreConfigured(): boolean {
+  // Client code cannot read DATABASE_URL directly; runtime validation happens in /api/transactions.
+  return true;
 }

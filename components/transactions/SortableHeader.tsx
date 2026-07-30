@@ -20,7 +20,7 @@
 
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { SortColumn, SortDirection } from "@/lib/supabase/transactions";
+import type { SortColumn, SortDirection } from "@/lib/transactions/api";
 
 interface SortableHeaderProps {
   column: SortColumn;

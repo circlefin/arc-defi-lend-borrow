@@ -143,22 +143,17 @@ All environment variables live in `.env.local`. The deploy script automatically 
 | `NEXT_PUBLIC_CIRCLE_CLIENT_KEY`        | Circle modular wallets client key (for passkey wallet)                              |
 | `NEXT_PUBLIC_CIRCLE_CLIENT_URL`        | Circle modular wallets API URL (for passkey wallet)                                 |
 | `NEXT_PUBLIC_EXPLORER_URL`             | Block explorer base URL used for transaction links (optional)                       |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Local Supabase API URL (default `http://127.0.0.1:54321`)                           |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Local Supabase publishable key (printed by `npm run db:start`; formerly "anon key") |
+| `DATABASE_URL`                         | PostgreSQL connection string used by server API to persist transaction history       |
 
 
-## Local Database (Supabase)
+## Local Database (PostgreSQL)
 
-Transaction history is persisted in a locally self-hosted [Supabase](https://supabase.com) instance. Docker is required.
+Transaction history is persisted through the Next.js API route (`/api/transactions`) using `DATABASE_URL`.
 
-```bash
-npm run db:start    # boots Postgres + Studio + REST
-npm run db:status   # prints API URL, anon key, Studio URL
-npm run db:stop
-npm run db:reset    # re-run migrations, wipe data
-```
-
-On first run, copy the printed `Project URL` into `NEXT_PUBLIC_SUPABASE_URL` and the `Publishable` key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. (Supabase recently renamed `anon` → `publishable` and `service_role` → `secret`; only the publishable key is needed here.) The initial migration (`supabase/migrations/*_init_transactions.sql`) creates the `transactions` table used by the history panel on the dashboard.
+- You can use any PostgreSQL instance (local Docker or managed Postgres).
+- The API creates the `transactions` table and indexes automatically on first request.
+- Optional SQL bootstrap is available at `db/migrations/20260421165323_init_transactions.sql`.
+- Ensure `DATABASE_URL` is set before starting `npm run dev`.
 
 ## Project Structure
 
@@ -199,6 +194,9 @@ arc-borrow-lend/
 ├── public/                                 # Static assets
 ├── scripts/
 │   └── deploy-lending.ts                   # Deploys mock USDC + LendingBorrowing, funds pool
+├── db/
+│   └── migrations/
+│       └── 20260421165323_init_transactions.sql  # Optional SQL schema bootstrap for transactions
 ├── hardhat.config.ts                       # Arc Testnet network & compiler settings
 ├── next.config.ts                          # Next.js configuration
 ├── package.json                            # All dependencies & scripts
