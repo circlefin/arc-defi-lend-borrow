@@ -24,6 +24,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract LendingBorrowing is Ownable {
     using SafeERC20 for IERC20;
 
+    uint256 private constant BPS_DENOMINATOR = 10_000;
+    uint256 private constant WEEK_IN_SECONDS = 7 days;
+
     struct Loan {
         uint256 amount;     // ARCT currently owed
         uint256 collateral; // USDC locked when the loan was taken
@@ -33,9 +36,14 @@ contract LendingBorrowing is Ownable {
     IERC20 public immutable collateralToken; // USDC
     IERC20 public immutable lendingToken;    // ARCT
     uint256 public collateralFactor;         // percentage, e.g. 50 = 50%
+    uint256 public rewardRateBpsPerWeek;     // weekly reward rate for yield deposits
 
     mapping(address => uint256) public collateralBalances;
     mapping(address => Loan) public loans;
+    mapping(address => uint256) public yieldDeposits;
+    mapping(address => uint256) public pendingRewards;
+    mapping(address => uint64) public lastRewardAccrual;
+    mapping(address => bool) public approvedExecutors;
 
     event CollateralDeposited(address indexed user, uint256 amount);
     event CollateralWithdrawn(address indexed user, uint256 amount);
@@ -43,6 +51,11 @@ contract LendingBorrowing is Ownable {
     event LoanRepaid(address indexed user, uint256 amount);
     event PoolFunded(uint256 amount);
     event CollateralFactorUpdated(uint256 newFactor);
+    event YieldDeposited(address indexed user, uint256 amount);
+    event YieldWithdrawn(address indexed user, uint256 amount);
+    event RewardClaimed(address indexed user, uint256 amount, address indexed caller);
+    event RewardRateUpdated(uint256 newRewardRateBpsPerWeek);
+    event ExecutorApprovalUpdated(address indexed executor, bool approved);
 
     constructor(
         address _collateralToken,
@@ -55,6 +68,57 @@ contract LendingBorrowing is Ownable {
         collateralToken = IERC20(_collateralToken);
         lendingToken = IERC20(_lendingToken);
         collateralFactor = _collateralFactor;
+        rewardRateBpsPerWeek = 50; // 0.50% / week default emission for auto-compounder simulation.
+    }
+
+    modifier onlyApprovedExecutor() {
+        require(approvedExecutors[msg.sender], "Executor not approved");
+        _;
+    }
+
+    // ─── Auto-compounder yield actions ─────────────────────────────
+
+    /// @notice Deposit lending token into the yield leg. Requires prior ERC20 approval.
+    function deposit(uint256 amount) external {
+        require(amount > 0, "Amount must be > 0");
+        _accrueRewards(msg.sender);
+        lendingToken.safeTransferFrom(msg.sender, address(this), amount);
+        yieldDeposits[msg.sender] += amount;
+        emit YieldDeposited(msg.sender, amount);
+    }
+
+    /// @notice Withdraw lending token principal from the yield leg.
+    function withdraw(uint256 amount) external {
+        require(amount > 0, "Amount must be > 0");
+        _accrueRewards(msg.sender);
+        require(yieldDeposits[msg.sender] >= amount, "Insufficient yield deposit");
+
+        yieldDeposits[msg.sender] -= amount;
+        lendingToken.safeTransfer(msg.sender, amount);
+        emit YieldWithdrawn(msg.sender, amount);
+    }
+
+    /// @notice Keeper-oriented withdraw used by automation recipes.
+    function withdrawForUser(address user, uint256 amount) external onlyApprovedExecutor {
+        require(user != address(0), "Invalid user");
+        require(amount > 0, "Amount must be > 0");
+        _accrueRewards(user);
+        require(yieldDeposits[user] >= amount, "Insufficient yield deposit");
+
+        yieldDeposits[user] -= amount;
+        lendingToken.safeTransfer(user, amount);
+        emit YieldWithdrawn(user, amount);
+    }
+
+    /// @notice Claims accumulated rewards for caller.
+    function claimRewards() external returns (uint256 claimedAmount) {
+        claimedAmount = _claimRewardsFor(msg.sender);
+    }
+
+    /// @notice Claims accumulated rewards for a user from an approved automation executor.
+    function claimRewardsForUser(address user) external onlyApprovedExecutor returns (uint256 claimedAmount) {
+        require(user != address(0), "Invalid user");
+        claimedAmount = _claimRewardsFor(user);
     }
 
     // ─── User actions ────────────────────────────────────────────────
@@ -134,6 +198,20 @@ contract LendingBorrowing is Ownable {
         emit CollateralFactorUpdated(_collateralFactor);
     }
 
+    /// @notice Owner configures weekly reward rate for yield deposits.
+    function setRewardRateBpsPerWeek(uint256 _rewardRateBpsPerWeek) external onlyOwner {
+        require(_rewardRateBpsPerWeek <= BPS_DENOMINATOR, "Reward rate too high");
+        rewardRateBpsPerWeek = _rewardRateBpsPerWeek;
+        emit RewardRateUpdated(_rewardRateBpsPerWeek);
+    }
+
+    /// @notice Owner approves or revokes automation executors (e.g., SharedExecutorProxy).
+    function setExecutorApproval(address executor, bool approved) external onlyOwner {
+        require(executor != address(0), "Invalid executor");
+        approvedExecutors[executor] = approved;
+        emit ExecutorApprovalUpdated(executor, approved);
+    }
+
     // ─── View helpers ────────────────────────────────────────────────
 
     /// @notice Returns the maximum ARCT a user can currently borrow.
@@ -151,5 +229,49 @@ contract LendingBorrowing is Ownable {
     /// @notice Returns current ARCT liquidity in the pool.
     function poolLiquidity() external view returns (uint256) {
         return lendingToken.balanceOf(address(this));
+    }
+
+    /// @notice Returns total claimable rewards for a user at current timestamp.
+    function claimableRewards(address user) external view returns (uint256) {
+        uint256 rewards = pendingRewards[user];
+        uint256 deposited = yieldDeposits[user];
+        uint64 lastAccrual = lastRewardAccrual[user];
+        if (deposited == 0 || lastAccrual == 0 || block.timestamp <= lastAccrual) {
+            return rewards;
+        }
+
+        uint256 elapsed = block.timestamp - uint256(lastAccrual);
+        uint256 accrued = (deposited * rewardRateBpsPerWeek * elapsed) / (WEEK_IN_SECONDS * BPS_DENOMINATOR);
+        return rewards + accrued;
+    }
+
+    function _claimRewardsFor(address user) internal returns (uint256 claimedAmount) {
+        _accrueRewards(user);
+        claimedAmount = pendingRewards[user];
+        require(claimedAmount > 0, "No rewards");
+
+        pendingRewards[user] = 0;
+        lendingToken.safeTransfer(user, claimedAmount);
+        emit RewardClaimed(user, claimedAmount, msg.sender);
+    }
+
+    function _accrueRewards(address user) internal {
+        uint64 lastAccrual = lastRewardAccrual[user];
+        uint64 nowTs = uint64(block.timestamp);
+        if (lastAccrual == 0) {
+            lastRewardAccrual[user] = nowTs;
+            return;
+        }
+
+        uint256 deposited = yieldDeposits[user];
+        if (deposited > 0 && nowTs > lastAccrual) {
+            uint256 elapsed = uint256(nowTs - lastAccrual);
+            uint256 accrued = (deposited * rewardRateBpsPerWeek * elapsed) / (WEEK_IN_SECONDS * BPS_DENOMINATOR);
+            if (accrued > 0) {
+                pendingRewards[user] += accrued;
+            }
+        }
+
+        lastRewardAccrual[user] = nowTs;
     }
 }

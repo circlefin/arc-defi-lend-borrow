@@ -38,6 +38,9 @@ import {
   useWithdrawCollateral,
   useTakeLoan,
   useRepayLoan,
+  useDepositYield,
+  useWithdrawYield,
+  useClaimYieldRewards,
 } from "@/hooks/lending/useLendingActions";
 import { ERC20_ABI } from "@/lib/contracts/abis/erc20";
 import {
@@ -479,6 +482,213 @@ function LoanPanel({
   );
 }
 
+function YieldPanel({
+  usdcAllowance,
+  usdcBalance,
+  yieldDeposit,
+  claimableReward,
+  rewardRateBpsPerWeek,
+  estimatedAprPercent,
+  onSuccess,
+}: {
+  usdcAllowance: bigint | undefined;
+  usdcBalance: bigint | undefined;
+  yieldDeposit: bigint | undefined;
+  claimableReward: bigint | undefined;
+  rewardRateBpsPerWeek: bigint | undefined;
+  estimatedAprPercent: number | undefined;
+  onSuccess: () => void;
+}) {
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+
+  const approveUsdc = useApproveUsdcForLending();
+  const depositYield = useDepositYield();
+  const withdrawYield = useWithdrawYield();
+  const claimRewards = useClaimYieldRewards();
+
+  useEffect(() => { if (depositYield.isSuccess) { setDepositAmount(""); onSuccess(); } }, [depositYield.isSuccess, onSuccess]);
+  useEffect(() => { if (withdrawYield.isSuccess) { setWithdrawAmount(""); onSuccess(); } }, [withdrawYield.isSuccess, onSuccess]);
+  useEffect(() => { if (claimRewards.isSuccess) onSuccess(); }, [claimRewards.isSuccess, onSuccess]);
+
+  const depositBigInt = depositAmount ? parseUnits(depositAmount, LOAN_DECIMALS) : 0n;
+  const allowanceInsufficient =
+    usdcAllowance !== undefined &&
+    (usdcAllowance === 0n || (depositBigInt > 0n && depositBigInt > usdcAllowance));
+  const approvePending =
+    approveUsdc.isPending ||
+    approveUsdc.isConfirming ||
+    approveUsdc.isSubmitted ||
+    (approveUsdc.isSuccess && allowanceInsufficient);
+  const needsUsdcApproval = allowanceInsufficient || approvePending;
+
+  const maxDepositNum = usdcBalance !== undefined
+    ? parseFloat(formatUnits(usdcBalance, LOAN_DECIMALS))
+    : undefined;
+  const maxWithdrawNum = yieldDeposit !== undefined
+    ? parseFloat(formatUnits(yieldDeposit, LOAN_DECIMALS))
+    : undefined;
+
+  function clampToMax(value: string, max: number | undefined): string {
+    if (!value || max === undefined) return value;
+    const n = parseFloat(value);
+    if (Number.isNaN(n)) return value;
+    return n > max ? max.toString() : value;
+  }
+
+  const yieldDepositFmt = yieldDeposit !== undefined
+    ? (yieldDeposit === 0n ? "0" : parseFloat(formatUnits(yieldDeposit, LOAN_DECIMALS)).toFixed(6))
+    : "—";
+  const claimableFmt = claimableReward !== undefined
+    ? (claimableReward === 0n ? "0" : parseFloat(formatUnits(claimableReward, LOAN_DECIMALS)).toFixed(6))
+    : "—";
+  const estimatedAprFmt = estimatedAprPercent !== undefined
+    ? `${estimatedAprPercent.toFixed(2)}%`
+    : "—";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          Yield
+          <Badge variant="secondary">USDC</Badge>
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Estimated APR: <span className="font-mono text-foreground">{estimatedAprFmt}</span>
+          {rewardRateBpsPerWeek !== undefined && (
+            <span> ({rewardRateBpsPerWeek.toString()} bps/week)</span>
+          )}
+        </p>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="deposit">
+          <TabsList className="w-full">
+            <TabsTrigger value="deposit" className="flex-1">Deposit</TabsTrigger>
+            <TabsTrigger value="withdraw" className="flex-1">Withdraw</TabsTrigger>
+            <TabsTrigger value="claim" className="flex-1">Claim</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="deposit" className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Amount (USDC)</p>
+              <Input
+                type="number"
+                placeholder="0"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(clampToMax(e.target.value, maxDepositNum))}
+                max={maxDepositNum}
+                className="font-mono"
+              />
+              <QuickAmounts
+                onSelect={(v) => setDepositAmount(clampToMax(v, maxDepositNum))}
+                max={maxDepositNum}
+                presets={["0.00005", "0.0001", "0.0002", "0.0005"]}
+                onMax={() => usdcBalance !== undefined && setDepositAmount(formatUnits(usdcBalance, LOAN_DECIMALS))}
+              />
+            </div>
+            {needsUsdcApproval ? (
+              <>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => approveUsdc.approve(parseUnits("1000000", LOAN_DECIMALS))}
+                  disabled={approvePending || depositBigInt === 0n}
+                >
+                  {approvePending ? "Approving…" : "Approve USDC"}
+                </Button>
+                <TxStatus {...approveUsdc} />
+              </>
+            ) : (
+              <>
+                <Button
+                  className="w-full"
+                  onClick={() => depositYield.deposit(depositAmount)}
+                  disabled={
+                    depositYield.isPending ||
+                    depositYield.isConfirming ||
+                    depositYield.isSubmitted ||
+                    !depositAmount ||
+                    parseFloat(depositAmount) <= 0
+                  }
+                >
+                  {depositYield.isPending || depositYield.isConfirming || depositYield.isSubmitted
+                    ? "Depositing…"
+                    : "Deposit USDC"}
+                </Button>
+                <TxStatus {...depositYield} />
+              </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="withdraw" className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Amount (USDC)</p>
+              <Input
+                type="number"
+                placeholder="0"
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(clampToMax(e.target.value, maxWithdrawNum))}
+                max={maxWithdrawNum}
+                className="font-mono"
+              />
+              <QuickAmounts
+                onSelect={(v) => setWithdrawAmount(clampToMax(v, maxWithdrawNum))}
+                max={maxWithdrawNum}
+                presets={["0.00005", "0.0001", "0.0002", "0.0005"]}
+                onMax={() => yieldDeposit !== undefined && setWithdrawAmount(formatUnits(yieldDeposit, LOAN_DECIMALS))}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Yield principal: <span className="font-mono text-foreground">{yieldDepositFmt} USDC</span>
+              </p>
+            </div>
+            <Separator />
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => withdrawYield.withdraw(withdrawAmount)}
+              disabled={
+                withdrawYield.isPending ||
+                withdrawYield.isConfirming ||
+                withdrawYield.isSubmitted ||
+                !withdrawAmount ||
+                parseFloat(withdrawAmount) <= 0
+              }
+            >
+              {withdrawYield.isPending || withdrawYield.isConfirming || withdrawYield.isSubmitted
+                ? "Withdrawing…"
+                : "Withdraw USDC"}
+            </Button>
+            <TxStatus {...withdrawYield} />
+          </TabsContent>
+
+          <TabsContent value="claim" className="space-y-4">
+            <div className="rounded-lg border border-border bg-card/60 p-3">
+              <p className="text-xs text-muted-foreground">Claimable rewards</p>
+              <p className="text-lg font-semibold font-mono mt-1">{claimableFmt} USDC</p>
+            </div>
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => claimRewards.claim()}
+              disabled={
+                claimRewards.isPending ||
+                claimRewards.isConfirming ||
+                claimRewards.isSubmitted ||
+                claimableReward === undefined ||
+                claimableReward === 0n
+              }
+            >
+              {claimRewards.isPending || claimRewards.isConfirming || claimRewards.isSubmitted
+                ? "Claiming…"
+                : "Claim Rewards"}
+            </Button>
+            <TxStatus {...claimRewards} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Utilization card ─────────────────────────────────────────────────────────
 
 function UtilizationCard({
@@ -610,6 +820,15 @@ export default function LendingPage() {
               maxBorrow={state.maxBorrow}
               loanAmount={state.loanAmount}
               loanIsActive={state.loanIsActive}
+              onSuccess={refetchAll}
+            />
+            <YieldPanel
+              usdcAllowance={balances.usdcAllowance}
+              usdcBalance={balances.usdcBalance}
+              yieldDeposit={state.yieldDeposit}
+              claimableReward={state.claimableReward}
+              rewardRateBpsPerWeek={state.rewardRateBpsPerWeek}
+              estimatedAprPercent={state.estimatedAprPercent}
               onSuccess={refetchAll}
             />
           </div>

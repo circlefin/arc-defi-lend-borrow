@@ -16,10 +16,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-"use client";
-
-import { getSupabaseClient } from "./client";
-
 export type TxAction = "deposit" | "withdraw" | "borrow" | "repay" | "mint_usdc";
 export type TxToken = "cirBTC" | "USDC";
 export type TxStatus = "confirmed" | "failed";
@@ -63,48 +59,51 @@ export interface ListTransactionsResult {
   total: number;
 }
 
+const TRANSACTIONS_API = "/api/transactions";
+
+async function readError(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    if (typeof payload.error === "string" && payload.error.trim().length > 0) {
+      return payload.error;
+    }
+  } catch {
+    // Ignore parsing errors and fall back to status text.
+  }
+  return response.statusText || "Request failed";
+}
+
 export async function insertTransaction(input: InsertTransactionInput): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) return;
-  const { error } = await client.from("transactions").insert({
-    tx_hash: input.tx_hash,
-    wallet_address: input.wallet_address.toLowerCase(),
-    action: input.action,
-    token: input.token,
-    amount: input.amount,
-    amount_formatted: input.amount_formatted,
-    status: input.status ?? "confirmed",
+  const response = await fetch(TRANSACTIONS_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
-  // Ignore duplicate-hash conflicts; surface everything else.
-  if (error && error.code !== "23505") {
-    throw error;
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
   }
 }
 
 export async function listTransactions(
   params: ListTransactionsParams,
 ): Promise<ListTransactionsResult> {
-  const client = getSupabaseClient();
-  if (!client) return { rows: [], total: 0 };
+  const url = new URL(TRANSACTIONS_API, window.location.origin);
+  url.searchParams.set("wallet", params.wallet);
+  url.searchParams.set("search", params.search ?? "");
+  url.searchParams.set("sortColumn", params.sortColumn);
+  url.searchParams.set("sortDirection", params.sortDirection);
+  url.searchParams.set("page", String(params.page));
+  url.searchParams.set("pageSize", String(params.pageSize));
 
-  const from = params.page * params.pageSize;
-  const to = from + params.pageSize - 1;
-
-  let query = client
-    .from("transactions")
-    .select("*", { count: "exact" })
-    .eq("wallet_address", params.wallet.toLowerCase());
-
-  if (params.search && params.search.trim().length > 0) {
-    query = query.ilike("tx_hash", `%${params.search.trim()}%`);
+  const response = await fetch(url.toString(), { method: "GET" });
+  if (!response.ok) {
+    throw new Error(await readError(response));
   }
 
-  query = query
-    .order(params.sortColumn, { ascending: params.sortDirection === "asc" })
-    .range(from, to);
-
-  const { data, count, error } = await query;
-  if (error) throw error;
-
-  return { rows: (data as TransactionRow[]) ?? [], total: count ?? 0 };
+  const payload = (await response.json()) as ListTransactionsResult;
+  return {
+    rows: Array.isArray(payload.rows) ? payload.rows : [],
+    total: typeof payload.total === "number" ? payload.total : 0,
+  };
 }

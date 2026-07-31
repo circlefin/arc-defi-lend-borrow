@@ -35,6 +35,7 @@ import { ConnectDialog } from "./ConnectDialog";
 // mint is a gas-sponsored userOp and self-minting the mock loan token isn't the
 // supported path. Send those users to Circle's faucet instead.
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com/";
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // Format a token balance for display: trims trailing zeros (no "50000.000000")
 // and groups thousands. maxFractionDigits is per-token — cirBTC keeps full
@@ -89,6 +90,12 @@ export function ConnectWallet() {
   }
 
   const isWrongChain = walletType === "metamask" && chainId !== arcTestnet.id;
+  const isMintUnavailable = isWrongChain || USDC_ADDRESS === ZERO_ADDRESS;
+  const mintUnavailableReason = isWrongChain
+    ? "Switch MetaMask to Arc Testnet to use the in-app faucet"
+    : USDC_ADDRESS === ZERO_ADDRESS
+      ? "USDC address is missing. Deploy contracts and set NEXT_PUBLIC_USDC_ADDRESS"
+      : null;
   const formattedCirBtcBalance = cirBtcBalance !== undefined
     ? fmtBalance(cirBtcBalance as bigint, COLLATERAL_DECIMALS, 8)
     : null;
@@ -129,15 +136,17 @@ export function ConnectWallet() {
         ) : (
           <button
             onClick={() => mintUsdc.mint("1000")}
-            disabled={mintUsdc.isPending || mintUsdc.isConfirming}
+            disabled={isMintUnavailable || mintUsdc.isPending || mintUsdc.isConfirming}
             className={`rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors disabled:opacity-50 ${mintUsdc.error
               ? "bg-red-600/15 text-red-500 hover:bg-red-600/25"
               : "bg-green-600/15 text-green-500 hover:bg-green-600/25"
               }`}
-            title={mintUsdc.error ? `Error: ${mintUsdc.error.message}` : "Mint 1000 USDC test tokens"}
+            title={mintUnavailableReason ?? (mintUsdc.error ? `Error: ${mintUsdc.error.message}` : "Mint 1000 USDC test tokens")}
           >
             {mintUsdc.isPending || mintUsdc.isConfirming
               ? "Minting..."
+              : mintUnavailableReason
+                ? "Faucet off"
               : mintUsdc.error
                 ? "Mint failed"
                 : mintUsdc.isSuccess

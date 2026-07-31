@@ -16,9 +16,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { http, createConfig } from "wagmi";
+import { http, createConfig, injected } from "wagmi";
 import { type Chain, parseGwei } from "viem";
-import { injected } from "wagmi/connectors";
 
 export const WAGMI_POLLING_INTERVAL = 4_000;
 export const LIVE_STATE_REFETCH_INTERVAL = 5_000;
