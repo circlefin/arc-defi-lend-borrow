@@ -48,8 +48,8 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 
 1. Clone the repository and install dependencies:
   ```bash
-   git clone <repo-url>
-   cd arc-borrow-lend
+   git clone https://github.com/circlefin/arc-defi-lend-borrow.git
+   cd arc-defi-lend-borrow
    npm install
   ```
 2. Set up environment variables:
