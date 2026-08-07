@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "compile": "hardhat compile",
+    "test": "hardhat test",
     "deploy:lending": "hardhat run scripts/deploy-lending.ts --network arcTestnet",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
