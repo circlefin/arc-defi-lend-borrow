@@ -20,6 +20,8 @@
 
 import { parseTxError } from "@/lib/errors";
 
+const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_URL;
+
 export interface TxStatusProps {
   isPending: boolean;
   isConfirming: boolean;
@@ -39,31 +41,38 @@ export function TxStatus({
 }: TxStatusProps) {
   if (isPending)
     return <p className="text-xs text-yellow-500">Confirm in wallet...</p>;
+
   if (isConfirming)
     return <p className="text-xs text-blue-500">Waiting for confirmation...</p>;
+
   if (isSubmitted)
     return (
       <p className="text-xs text-blue-400">
         Transaction submitted — the network is slow. It will confirm automatically; you can close this.
       </p>
     );
+
   if (isSuccess && hash) {
     return (
       <p className="text-xs text-green-500">
         Success!{" "}
-        <a
-          href={`https://testnet.arcscan.app/tx/${hash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          View tx
-        </a>
+        {EXPLORER_BASE ? (
+          <a
+            href={`${EXPLORER_BASE.replace(/\/$/, "")}/tx/${hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            View tx
+          </a>
+        ) : null}
       </p>
     );
   }
+
   if (error) {
     const { title, detail } = parseTxError(error);
+
     return (
       <div className="rounded-md bg-red-500/10 px-2.5 py-1.5 text-xs text-red-500">
         <p className="font-medium">{title}</p>
@@ -71,5 +80,6 @@ export function TxStatus({
       </div>
     );
   }
+
   return null;
 }
