@@ -19,8 +19,21 @@
 /**
  * Parse raw blockchain/wallet errors into user-friendly messages.
  */
-export function parseTxError(error: Error): { title: string; detail?: string } {
-  const msg = error.message || "";
+export function parseTxError(error: unknown): { title: string; detail?: string } {
+  if (!error) {
+    return { title: "Transaction failed", detail: "An unknown error occurred." };
+  }
+
+  let msg = "";
+  if (typeof error === "string") {
+    msg = error;
+  } else if (error instanceof Error) {
+    msg = error.message || "";
+  } else if (typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
+    msg = (error as any).message;
+  } else {
+    msg = String(error);
+  }
 
   // User rejected the transaction in their wallet
   if (
