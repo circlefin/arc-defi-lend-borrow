@@ -2,7 +2,7 @@
   "name": "arc-borrow-lend",
   "version": "1.0.0",
   "private": true,
-  "description": "Lending and borrowing demo on Arc Testnet — deposit USDC as collateral and borrow ARCT",
+  "description": "Lending and borrowing demo on Arc Testnet — deposit cirBTC as collateral and borrow USDC",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
