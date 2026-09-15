@@ -33,7 +33,11 @@ import { ConnectDialog } from "./ConnectDialog";
 
 // Circle modular (passkey) wallets can't use the in-app allocateTo faucet — the
 // mint is a gas-sponsored userOp and self-minting the mock loan token isn't the
-// supported path. Send those users to Circle's faucet instead.
+// supported path. Send those users to Circle's **gas** faucet instead.
+//
+// ⚠️ This faucet dispenses native USDC (gas), NOT the mock USDC loan token
+// (USDC_ADDRESS) displayed as the `USDC:` balance in the UI. Do not conflate
+// the two — see README § Prerequisites.
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com/";
 
 // Format a token balance for display: trims trailing zeros (no "50000.000000")
@@ -122,9 +126,9 @@ export function ConnectWallet() {
             target="_blank"
             rel="noopener noreferrer"
             className="rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors bg-green-600/15 text-green-500 hover:bg-green-600/25"
-            title="Get USDC from Circle's faucet (opens in a new tab)"
+            title="Get native USDC (gas) from Circle's faucet. Note: this is not the mock USDC loan token used by this app. (opens in a new tab)"
           >
-            Faucet ↗
+            Gas faucet ↗
           </a>
         ) : (
           <button
