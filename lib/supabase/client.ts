@@ -29,7 +29,12 @@ export function getSupabaseClient(): SupabaseClient | null {
   if (!url || !publishableKey) return null;
   if (!cached) {
     cached = createClient(url, publishableKey, {
-      auth: { persistSession: false },
+      // The session must be persisted so `auth.uid()` is populated in requests that write
+      // to `public.transactions`. Row-level security scopes inserts to a wallet the
+      // authenticated caller has claimed (see
+      // supabase/migrations/20260421165323_init_transactions.sql); with `persistSession: false`
+      // every write was anonymous and could never satisfy that policy.
+      auth: { persistSession: true, autoRefreshToken: true },
     });
   }
   return cached;
