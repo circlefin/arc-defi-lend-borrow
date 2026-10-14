@@ -25,7 +25,7 @@ export const LIVE_STATE_REFETCH_INTERVAL = 5_000;
 
 const alchemyRpcUrl =
   process.env.NEXT_PUBLIC_RPC_URL ||
-  "https://rpc.testnet.arc.network";
+  "https://rpc.testnet.arc.io";
 
 export const arcTestnet: Chain = {
   id: 5042002,

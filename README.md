@@ -1,6 +1,6 @@
 # Arc Borrow & Lend
 
-A collateralized lending platform built on [Arc Testnet](https://arc.network/). Users connect a wallet, deposit cirBTC as collateral, and borrow USDC against it. The protocol is governed by a configurable collateral factor — by default users can borrow up to 50% of their deposited collateral value.
+A collateralized lending platform built on [Arc Testnet](https://www.arc.io/). Users connect a wallet, deposit cirBTC as collateral, and borrow USDC against it. The protocol is governed by a configurable collateral factor — by default users can borrow up to 50% of their deposited collateral value.
 
 <img alt="Arc Borrow & Lend dashboard" src="public/screenshot.png" />
 
@@ -56,7 +56,7 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
   ```bash
    cp .env.example .env.local
   ```
-   Edit `.env.local` and fill in your deployer private key and (optionally) Circle credentials (see [Environment Variables](#environment-variables)). The Arc Testnet RPC URL defaults to [https://rpc.testnet.arc.network](https://rpc.testnet.arc.network).
+   Edit `.env.local` and fill in your deployer private key and (optionally) Circle credentials (see [Environment Variables](#environment-variables)). The Arc Testnet RPC URL defaults to [https://rpc.testnet.arc.io](https://rpc.testnet.arc.io).
   > **Note:** The public RPC rate-limits (HTTP 429) under the app's polling — balances and buttons can stall. For demos or heavy use, set `NEXT_PUBLIC_RPC_URL` to a dedicated provider (e.g. an Alchemy Arc Testnet endpoint).
   > **Note:** Deployment requires a **non-custodial wallet** (e.g. MetaMask) whose private key you can export. Custodial wallets like Circle passkey wallets do not expose private keys and cannot be used for deployment. The Circle wallet integration is for end users interacting with the deployed contracts via the frontend.
 3. Compile and deploy the smart contracts:
